@@ -14,7 +14,108 @@ xxd
 [中文版](./README_CN.md)
 
 
-xxd Project Description
+# xxd Project Brief Description
+## Project Name
+xxd - Static Resource to C++ Code Tool (CMake Edition)
+
+## Core Purpose
+Built with CMake, this project is a lightweight toolchain that batch converts static resources (such as configuration files, frontend static files, and binary data) into C++ code (generating `.xxd.h/.cc` files). It encapsulates resources into standard C++ interfaces for business code invocation, which can be embedded into static/shared libraries for distribution. This achieves "resource codification" and eliminates runtime dependencies on external files.
+
+## Core Features
+1. **Lightweight & Dependency-Free**: Generated code is encapsulated with C++17 `std::string_view` for zero-copy resource access, no third-party dependencies, and direct compilability;
+2. **Engineering Adaptability**: Supports relative path management, include path adaptation, comprehensive parameter validation and default value mechanisms, fully compatible with CMake build workflows;
+3. **Batch Processing & Aggregation**: Enables batch conversion of multiple files, automatically aggregates all resources into a key-value list for easy name-based resource lookup;
+4. **Incremental Build Friendly**: Implements incremental builds via CMake `add_custom_command`, regenerating code only when source resources are modified.
+
+## Typical Use Cases
+- Embedding static resources (e.g., Swagger UI frontend files, configuration templates) into C++ shared/static libraries/executables;
+- Converting binary data (e.g., protocol packets, images) into C++ code to avoid runtime external file reading;
+- Unified resource management in cross-platform projects, eliminating file path dependencies across different systems.
+
+## Core Advantages
+Eliminates manual resource encapsulation code, completing the full workflow of "resource → C++ code → compilation & distribution" with one click. It balances modern C++ coding standards and engineering efficiency, adapting to static/shared library distribution scenarios.
+
+## using
+
+```cmake
+find_package(xxd REQUIRED)
+
+kmcmake_cc_xxd(
+     NAME        gen_assets          # Custom name, exports gen_assets_HDRS/gen_assets_SRCS
+     NAMESPACE   kumo::gen           # Namespace for generated code
+     OUTDIR      ${CMAKE_CURRENT_SOURCE_DIR}  # Output generated files to current directory
+     INCLUDEBASE ${PROJECT_SOURCE_DIR}        # Base directory for #include is project root
+     ASSETDIR    ${CMAKE_CURRENT_SOURCE_DIR}  # FILES are based on current directory (i.e., abc/b.md is under current directory)
+     FILES       # Asset files to convert, ★must be relative paths to ASSETDIR★
+        abc/b.md       # Corresponds to ASSETDIR/abc/b.md
+         abc/bdc/a.md   # Corresponds to ASSETDIR/abc/bdc/a.md
+)
+
+```
+
+```cmake
+#------------------------------------------------------------------------------
+# Function Name: kmcmake_cc_xxd
+# Description: Batch convert static asset files into C++ directly referable code files (xxd.h/cc),
+#              generate std::string_view-based asset wrappers, and aggregate them into a resource list (xxd_gen.h/cc).
+#              Finally, export the list of generated header/source files for compiling into target libraries/executables.
+# Core Logic: Generate hexadecimal arrays + std::string_view wrappers for each asset file,
+#             and aggregate all assets into a vector<pair> structure.
+#------------------------------------------------------------------------------
+# Parameter Explanations (by passing order/category):
+#   [Required] NAME:         Custom name used to export generated file list variables (format: ${NAME}_HDRS/${NAME}_SRCS)
+#   [Required] NAMESPACE:    C++ namespace that wraps the generated code
+#   [Optional] OUTDIR:       Output directory for generated xxd.h/cc and xxd_gen.h/cc files
+#                            Default: CMAKE_CURRENT_SOURCE_DIR (directory where the function is called)
+#   [Optional] ASSETDIR:     Base directory for asset files (FILES), ★FILES must be relative paths to this directory★
+#                            Default: CMAKE_CURRENT_SOURCE_DIR (directory where the function is called)
+#   [Optional] INCLUDEBASE:  Base directory for generating #include <xxx.h> (used to calculate relative paths of headers)
+#                            Default: PROJECT_SOURCE_DIR (project root directory)
+#   [Required] FILES:        List of asset files to convert, ★must be relative paths to ASSETDIR★, supports multiple files
+#------------------------------------------------------------------------------
+# Exported Variables (usable directly after calling the function):
+#   ${NAME}_HDRS:        List of all generated xxd.h and xxd_gen.h files
+#   ${NAME}_SRCS:        List of all generated xxd.cc and xxd_gen.cc files
+#------------------------------------------------------------------------------
+# Key Notes:
+#   1. FILES parameter must pass relative paths to ASSETDIR, not absolute paths or paths relative to other bases;
+#   2. Naming rule for generated xxd.h/cc files: ${OUTDIR}/${FILE_NAME}.xxd.h/cc (FILE_NAME is the original name in FILES);
+#   3. In generated code, asset variable names are created by replacing [./-] in FILES paths with _ (e.g., abc/b.md → abc_b_md);
+#   4. Aggregate files xxd_gen.h/cc generate xxd_gen_files (vector<pair>), storing "original file name - asset variable" mappings;
+#------------------------------------------------------------------------------
+# Usage Example (complete and directly reusable):
+# include(km_xxd)  # Include this cmake function file
+# 
+# # Call xxd conversion function to generate resource code
+# kmcmake_cc_xxd(
+#     NAME        gen_assets          # Custom name, exports gen_assets_HDRS/gen_assets_SRCS
+#     NAMESPACE   kumo::gen           # Namespace for generated code
+#     OUTDIR      ${CMAKE_CURRENT_SOURCE_DIR}  # Output generated files to current directory
+#     INCLUDEBASE ${PROJECT_SOURCE_DIR}        # Base directory for #include is project root
+#     ASSETDIR    ${CMAKE_CURRENT_SOURCE_DIR}  # FILES are based on current directory (i.e., abc/b.md is under current directory)
+#     FILES       # Asset files to convert, ★must be relative paths to ASSETDIR★
+#         abc/b.md       # Corresponds to ASSETDIR/abc/b.md
+#         abc/bdc/a.md   # Corresponds to ASSETDIR/abc/bdc/a.md
+# )
+# 
+# # Compile generated resource code into a shared library (combined with kmcmake_cc_library function)
+# kmcmake_cc_library(
+#     NAMESPACE ${PROJECT_NAME}       # Library namespace (project name)
+#     NAME      swaegerui             # Library name: libswaegerui.so
+#     SOURCES   ${gen_assets_SRCS}    # Include xxd-generated source files
+#     CXXOPTS   ${KMCMAKE_CXX_OPTIONS}# C++ compilation options
+#     LINKS     ${KMCMAKE_DEPS_LINK}  # Dependent library links
+#     PUBLIC                          # Library visibility: PUBLIC
+# )
+#------------------------------------------------------------------------------
+# Generated File Examples (for reference):
+# 1. OUTDIR/abc/b.md.xxd.h: Declares kumo::gen::abc_b_md (std::string_view)
+# 2. OUTDIR/abc/b.md.xxd.cc: Defines hexadecimal array + string_view for abc_b_md
+# 3. OUTDIR/xxd_gen.h: Declares kumo::gen::xxd_gen_files (resource list)
+# 4. OUTDIR/xxd_gen.cc: Defines xxd_gen_files, including mappings like {"abc/b.md", abc_b_md}
+#------------------------------------------------------------------------------
+
+```
 
 ## 🛠️ Build
 
