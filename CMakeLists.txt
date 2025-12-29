@@ -30,9 +30,9 @@ if (not_top)
     set(${PROJECT_NAME}_IS_TOP_PROJECT OFF)
 endif ()
 
-set(PROJECT_DESCRIPTION "Hercules is an ahead of time compiler for a subset of the Python language framework.")
+set(PROJECT_DESCRIPTION "xxd is a CMake-based toolchain to convert static resources into C++ code for library embedding.")
 set(PROJECT_VERSION_MAJOR 0)
-set(PROJECT_VERSION_MINOR 0)
+set(PROJECT_VERSION_MINOR 1)
 set(PROJECT_VERSION_PATCH 5)
 set(PROJECT_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 
@@ -90,13 +90,13 @@ if(NOT PYTHON_EXTENSION)
     ##############################################
     # header installing
     #############################################
-    install(DIRECTORY ${PROJECT_NAME}
-            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-            FILES_MATCHING
-            PATTERN "*.inc"
-            PATTERN "*.h"
-            PATTERN "*.hpp"
-            )
+    install(
+            FILES
+            ${PROJECT_SOURCE_DIR}/xxd/version.h
+            DESTINATION
+            ${CMAKE_INSTALL_INCLUDEDIR}/xxd
+    )
+
 
     # Layout. This works for all platforms:
     #   * <prefix>//cmake/<PROJECT-NAME>
@@ -145,6 +145,14 @@ if(NOT PYTHON_EXTENSION)
     install(
             FILES
             "${project_config}" "${version_config}"
+            DESTINATION
+            "${config_install_dir}"
+    )
+
+    install(
+            FILES
+            ${PROJECT_SOURCE_DIR}/cmake/xxd.cmake
+            ${PROJECT_SOURCE_DIR}/cmake/km_xxd.cmake
             DESTINATION
             "${config_install_dir}"
     )

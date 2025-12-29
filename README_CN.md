@@ -14,7 +14,107 @@ xxd
 [English](./README.md)
 
 
-xxd 项目说明
+# xxd 项目简要说明
+## 项目名称
+xxd - 静态资源转C++代码工具（CMake版）
+
+## 核心用途
+本项目基于 CMake 构建，是一套轻量级工具链，可将文本、二进制等静态资源（如配置文件、前端静态文件、二进制数据）批量转换为 C++ 代码（生成 `.xxd.h/.cc` 文件），并封装为标准 C++ 接口供业务代码调用，最终可嵌入到静态库/共享库中发布，实现“资源代码化”，避免运行时依赖外部文件。
+
+## 核心特性
+1. **轻量无依赖**：生成的代码基于 C++17 `std::string_view` 封装，零拷贝访问资源，无第三方依赖，可直接编译；
+2. **工程化适配**：支持相对路径管理、头文件包含路径适配，完善的参数校验和默认值机制，适配 CMake 编译流程；
+3. **批量处理+汇总**：支持多文件批量转换，自动汇总所有资源为键值对列表，便于按名称查找资源；
+4. **增量构建友好**：基于 CMake `add_custom_command` 实现增量构建，仅资源文件修改时重新生成代码。
+
+## 典型使用场景
+- 嵌入式静态资源（如 Swagger UI 前端文件、配置模板）到 C++ 共享库/可执行文件；
+- 二进制数据（如协议包、图片）转为 C++ 代码，避免运行时读取外部文件；
+- 跨平台项目中统一资源管理，消除不同系统的文件路径依赖。
+
+## 核心优势
+无需手动编写资源封装代码，一键完成“资源→C++ 代码→编译发布”全流程，兼顾现代 C++ 编码规范与工程化落地效率，适配静态库/共享库发布场景。
+
+
+## using
+
+```cmake
+find_package(xxd REQUIRED)
+
+kmcmake_cc_xxd(
+     NAME        gen_assets          # Custom name, exports gen_assets_HDRS/gen_assets_SRCS
+     NAMESPACE   kumo::gen           # Namespace for generated code
+     OUTDIR      ${CMAKE_CURRENT_SOURCE_DIR}  # Output generated files to current directory
+     INCLUDEBASE ${PROJECT_SOURCE_DIR}        # Base directory for #include is project root
+     ASSETDIR    ${CMAKE_CURRENT_SOURCE_DIR}  # FILES are based on current directory (i.e., abc/b.md is under current directory)
+     FILES       # Asset files to convert, ★must be relative paths to ASSETDIR★
+        abc/b.md       # Corresponds to ASSETDIR/abc/b.md
+         abc/bdc/a.md   # Corresponds to ASSETDIR/abc/bdc/a.md
+)
+
+```
+
+```cmake
+#------------------------------------------------------------------------------
+# 函数名称: kmcmake_cc_xxd
+# 功能描述: 批量将静态资源文件转换为C++可直接引用的代码文件（xxd.h/cc），
+#           生成基于std::string_view的资源封装，并汇总生成资源列表（xxd_gen.h/cc），
+#           最终导出生成的头文件/源文件列表，用于编译到目标库/可执行文件。
+# 核心逻辑: 对每个资源文件生成十六进制数组+std::string_view封装，汇总所有资源为vector<pair>
+#------------------------------------------------------------------------------
+# 参数说明（按传入顺序/类别）:
+#   [必选] NAME:         自定义名称，用于导出生成的文件列表变量（格式：${NAME}_HDRS/${NAME}_SRCS）
+#   [必选] NAMESPACE:    C++命名空间，生成的代码会包裹在该命名空间下
+#   [可选] OUTDIR:       生成的xxd.h/cc、xxd_gen.h/cc的输出目录
+#                        默认值: CMAKE_CURRENT_SOURCE_DIR（调用函数的目录）
+#   [可选] ASSETDIR:     资源文件（FILES）的基准目录，★FILES必须是相对于该目录的相对路径★
+#                        默认值: CMAKE_CURRENT_SOURCE_DIR（调用函数的目录）
+#   [可选] INCLUDEBASE:  生成#include <xxx.h>时的基准目录（用于计算头文件相对路径）
+#                        默认值: PROJECT_SOURCE_DIR（项目根目录）
+#   [必选] FILES:        待转换的资源文件列表，★必须是相对于ASSETDIR的相对路径★，支持多文件
+#------------------------------------------------------------------------------
+# 导出变量（调用函数后可直接使用）:
+#   ${NAME}_HDRS:        生成的所有xxd.h、xxd_gen.h文件列表
+#   ${NAME}_SRCS:        生成的所有xxd.cc、xxd_gen.cc文件列表
+#------------------------------------------------------------------------------
+# 关键注意事项:
+#   1. FILES参数必须传入相对于ASSETDIR的相对路径，而非绝对路径/其他基准路径；
+#   2. 生成的xxd.h/cc文件命名规则: ${OUTDIR}/${FILE_NAME}.xxd.h/cc（FILE_NAME为FILES中的原始名称）；
+#   3. 生成的代码中，资源变量名由FILES路径替换 [./-] 为 _ 生成（如abc/b.md → abc_b_md）；
+#   4. 汇总文件xxd_gen.h/cc会生成swaeger_files（vector<pair>），存储「原始文件名-资源变量」映射；
+#------------------------------------------------------------------------------
+# 应用示例（完整可直接复用）:
+# include(km_xxd)  # 引入该cmake函数文件
+# 
+# # 调用xxd转换函数，生成资源代码
+# kmcmake_cc_xxd(
+#     NAME        gen_assets          # 自定义名称，导出gen_assets_HDRS/gen_assets_SRCS
+#     NAMESPACE   kumo::gen           # 生成代码的命名空间
+#     OUTDIR      ${CMAKE_CURRENT_SOURCE_DIR}  # 生成文件输出到当前目录
+#     INCLUDEBASE ${PROJECT_SOURCE_DIR}        # #include基准目录为项目根
+#     ASSETDIR    ${CMAKE_CURRENT_SOURCE_DIR}  # FILES基于当前目录（即abc/b.md在当前目录下）
+#     FILES       # 待转换文件，★必须是相对于ASSETDIR的相对路径★
+#         abc/b.md       # 对应ASSETDIR/abc/b.md
+#         abc/bdc/a.md   # 对应ASSETDIR/abc/bdc/a.md
+# )
+# 
+# # 将生成的资源代码编译为共享库（结合kmcmake_cc_library函数）
+# kmcmake_cc_library(
+#     NAMESPACE ${PROJECT_NAME}       # 库的命名空间（项目名）
+#     NAME      swaegerui             # 库名称：libswaegerui.so
+#     SOURCES   ${gen_assets_SRCS}    # 引入xxd生成的源文件
+#     CXXOPTS   ${KMCMAKE_CXX_OPTIONS}# C++编译选项
+#     LINKS     ${KMCMAKE_DEPS_LINK}  # 依赖库链接
+#     PUBLIC                          # 库的可见性：PUBLIC
+# )
+#------------------------------------------------------------------------------
+# 生成文件示例（参考）:
+# 1. OUTDIR/abc/b.md.xxd.h: 声明kumo::gen::abc_b_md（std::string_view）
+# 2. OUTDIR/abc/b.md.xxd.cc: 定义abc_b_md的十六进制数组+string_view
+# 3. OUTDIR/xxd_gen.h: 声明kumo::gen::swaeger_files（资源列表）
+# 4. OUTDIR/xxd_gen.cc: 定义swaeger_files，包含{"abc/b.md", abc_b_md}等映射
+#------------------------------------------------------------------------------
+```
 
 ## 🛠️ Build
 

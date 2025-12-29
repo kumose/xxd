@@ -1,58 +1,63 @@
+# Copyright (C) Kumo inc. and its affiliates.
+# Author: Jeff.li lijippy@163.com
+# All rights reserved.
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
-# Copyright 2024 Kumo.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
 #
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#    https://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
 ###########################################################################
 # below are examples, after initialization, modify it to your own.
 ###########################################################################
 ###kmcmake_example
+
+
+include(km_xxd)
+
+# only dev set KM_XXD_CMAKE,
+# normally will be auto set by find package procedure
+#[[
+set(KM_XXD_CMAKE ${PROJECT_SOURCE_DIR}/cmake/xxd.cmake)
+kmcmake_cc_xxd(
+    NAME        gen_assets   
+    NAMESPACE   kumo::gen    
+    OUTDIR      ${CMAKE_CURRENT_SOURCE_DIR}
+    INCLUDEBASE ${PROJECT_SOURCE_DIR}
+    ASSETDIR    ${CMAKE_CURRENT_SOURCE_DIR}
+    FILES      
+        abc/b.md
+        abc/bdc/a.md
+)
+
+
 kmcmake_cc_library(
         NAMESPACE ${PROJECT_NAME}
-        NAME foo
+        NAME swaegerui
         SOURCES
-        foo.cc
+        ${gen_assets_SRCS}
         CXXOPTS
         ${KMCMAKE_CXX_OPTIONS}
-        PLINKS
+        LINKS
         ${KMCMAKE_DEPS_LINK}
         PUBLIC
 )
+
+]]
 
 kmcmake_cc_interface(
         NAMESPACE ${PROJECT_NAME}
-        NAME api
+        NAME version
         HEADERS
-        api.h
+        version.h
         CXXOPTS
         ${KMCMAKE_CXX_OPTIONS}
         PUBLIC
 )
-
-kmcmake_cc_binary(
-        NAMESPACE ${PROJECT_NAME}
-        NAME shared_main
-        SOURCES
-        main.cc
-        CXXOPTS
-        ${KMCMAKE_CXX_OPTIONS}
-        DEPS
-        ${PROJECT_NAME}::foo
-        LINKS
-        ${KMCMAKE_DEPS_LINK}
-        ${PROJECT_NAME}::foo
-        PUBLIC
-)
-
-
-###kmcmake_example
